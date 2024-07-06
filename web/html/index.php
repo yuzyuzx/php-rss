@@ -1,37 +1,59 @@
 <?php
 declare(strict_types=1);
 
-$feedUrl = "https://zenn.dev/topics/php/feed";
-$fetchFeed = file_get_contents($feedUrl);
+$feedUrl = "https://zenn.dev/topics/php/fee";
 
-$feed = new simpleXMLElement($fetchFeed);
-//print_r($feed);
+// 新規cURLリソースを作成
+$ch = curl_init();
+curl_setopt($ch, CURLOPT_URL, $feedUrl);
 
-printf("Title: %s", $feed->channel->title);
-echo "<hr>";
+// curl_exec()の戻り値を文字列で返す
+curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
 
-//foreach ($feed->xpath('//channel/item') as $item) {
-//  echo $item->title . "<br>";
-//}
-//echo "<hr>";
+// タイムアウト（秒）
+$timeout = 1;
+curl_setopt($ch, CURLOPT_TIMEOUT, $timeout);
 
-foreach ($feed->channel->item as $item) {
-  printf("<a href='%s' target=_blank>%s</a><br>", $item->link, $item->title);
-//  printf(
-//    "<a href='%s' target=_blank>%s</a><br>",
-//    $item->link,
-//    $item->title
-//  );
+// 実行
+$response = curl_exec($ch);
+
+if ($response === false) {
+  echo "curl error: " . curl_error($ch) . "\n";
+  // cURLリソースを閉じる
+  curl_close($ch);
+  exit();
 }
-echo "<hr>";
 
-$simplexmlLoadString = simplexml_load_string($fetchFeed);
-foreach ($simplexmlLoadString->channel->item as $item) {
- echo $item->title . "<br>";
+// 最後に受け取ったHTTPコード取得する
+$httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+if ($httpCode !== 200) {
+  echo "http code: " . $httpCode . "\n";
+
+  // cURLリソースを閉じる
+  curl_close($ch);
+  exit();
 }
-echo "<hr>";
 
-$simpleLoadFile = simplexml_load_file($fetchFeed);
-foreach ($simpleLoadFile->channel->item as $item) {
-  echo $item->title . "<br>";
+try {
+  // エラー処理を有効にする
+  libxml_use_internal_errors(true);
+
+  $feed = new simpleXMLElement($response);
+
+  printf("Title: %s", $feed->channel->title);
+  echo "<hr>";
+
+  foreach ($feed->channel->item as $item) {
+    printf(
+      "<a href='%s' target=_blank>%s</a><br>",
+      $item->link,
+      $item->title
+    );
+  }
+} catch (Exception $e) {
+  echo "Failed to parse XML data.\n";
+} finally {
+  // エラーハンドルをクリアする
+  libxml_clear_errors();
 }
