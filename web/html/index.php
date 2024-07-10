@@ -1,7 +1,8 @@
 <?php
+
 declare(strict_types=1);
 
-$feedUrl = "https://zenn.dev/topics/php/fee";
+$feedUrl = "https://zenn.dev/topics/php/feed";
 
 // 新規cURLリソースを作成
 $ch = curl_init();
@@ -47,8 +48,8 @@ try {
   foreach ($feed->channel->item as $item) {
     printf(
       "<a href='%s' target=_blank>%s</a><br>",
-      $item->link,
-      $item->title
+      htmlspecialchars((string)$item->link, ENT_QUOTES),
+      htmlspecialchars((string)$item->title, ENT_QUOTES),
     );
   }
 } catch (Exception $e) {
