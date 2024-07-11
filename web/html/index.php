@@ -2,6 +2,12 @@
 
 declare(strict_types=1);
 
+require_once "./fetchFeed.php";
+$cls = new fetchFeed();
+echo $cls->url;
+
+exit();
+
 $feedUrl = "https://zenn.dev/topics/php/feed";
 
 // 新規cURLリソースを作成
@@ -36,6 +42,8 @@ if ($httpCode !== 200) {
   exit();
 }
 
+$response = "<root><item>Item</item></root>";
+
 try {
   // エラー処理を有効にする
   libxml_use_internal_errors(true);
@@ -45,6 +53,10 @@ try {
   printf("Title: %s", $feed->channel->title);
   echo "<hr>";
 
+  if(!isset($feed->channel->item)){
+    throw new Exception("Failed to parse XML data.\n");
+  }
+
   foreach ($feed->channel->item as $item) {
     printf(
       "<a href='%s' target=_blank>%s</a><br>",
@@ -53,7 +65,7 @@ try {
     );
   }
 } catch (Exception $e) {
-  echo "Failed to parse XML data.\n";
+  echo $e->getMessage();
 } finally {
   // エラーハンドルをクリアする
   libxml_clear_errors();
