@@ -8,11 +8,3 @@ spl_autoload_register(function (string $class) {
 
 $cls = new Feed();
 $cls->run();
-
-//try {
-//  $cls = new Feed();
-//  $cls->run();
-//} catch (Exception $e) {
-//  echo $e->getMessage();
-//}
-//
