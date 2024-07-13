@@ -41,6 +41,9 @@ class Feed {
     }
 
     $contents = $this->createFeedContentsHtml();
+
+    $this->displayContent($contents);
+
   }
 
   /**
@@ -163,7 +166,6 @@ class Feed {
       $feed[] = $tmp;
     }
     $data["feed"] = $feed;
-//    print_r($data);
 
     $this->feedData[$topicName] = $data;
   }
@@ -200,31 +202,16 @@ class Feed {
     return $contents;
   }
 
-  /**
-   * @param SimpleXMLElement $xml
-   * @return void
-   */
-  private function displayContent(SimpleXMLElement $xml): void {
-    printf(
-      "<h3><a href='%s' target=_blank>%s</a></h3>",
-      htmlspecialchars($this->topicUrl, ENT_QUOTES),
-      htmlspecialchars((string)$xml->channel->title, ENT_QUOTES),
-    );
 
-    // `item`要素がない場合は`foreach`で`warning`が出るのでここで止める
-    if (!isset($xml->channel->item)) {
-      echo "フィードの取得に失敗しました<hr>";
-      return;
-    }
 
-    echo "<ul>";
-    foreach ($xml->channel->item as $item) {
-      printf(
-        "<li><a href='%s' target=_blank>%s</a></li>",
-        htmlspecialchars((string)$item->link, ENT_QUOTES),
-        htmlspecialchars((string)$item->title, ENT_QUOTES),
-      );
-    }
-    echo "</ul>";
+  private function displayContent(string $contents): void {
+
+    // ファイル存在チェック
+    $html = file("./index.html");
+    var_dump($html);
+
+    // false処理
+
   }
+
 }
