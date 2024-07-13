@@ -131,12 +131,10 @@ class Feed {
    */
   private function displayContent(SimpleXMLElement $xml): void {
     printf(
-      "<a href='%s' target=_blank>%s</a>",
+      "<h3><a href='%s' target=_blank>%s</a></h3>",
       htmlspecialchars($this->topicUrl, ENT_QUOTES),
       htmlspecialchars((string)$xml->channel->title, ENT_QUOTES),
     );
-
-    echo "<hr>";
 
     // `item`要素がない場合は`foreach`で`warning`が出るのでここで止める
     if (!isset($xml->channel->item)) {
@@ -144,12 +142,14 @@ class Feed {
       return;
     }
 
+    echo "<ul>";
     foreach ($xml->channel->item as $item) {
       printf(
-        "<a href='%s' target=_blank>%s</a><br>",
+        "<li><a href='%s' target=_blank>%s</a></li>",
         htmlspecialchars((string)$item->link, ENT_QUOTES),
         htmlspecialchars((string)$item->title, ENT_QUOTES),
       );
     }
+    echo "</ul>";
   }
 }
