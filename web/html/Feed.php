@@ -10,6 +10,8 @@ class Feed {
 
   private string $topicUrl;
 
+  private array $feedData = [];
+
   public function __construct() {
     $this->topicNames = [
       "php",
@@ -22,16 +24,23 @@ class Feed {
    */
   public function run(): void {
     foreach ($this->topicNames as $topicName) {
-
       $response = $this->fetch($topicName);
 
       if (!$response) {
-        printf("%sフィードの取得に失敗しました<br>\n", $topicName);
+        printf("ネットワークのに失敗しました<br>\n");
         continue;
       }
 
-      $this->xml($response);
+      $xmlData = $this->loadXml($response);
+      if (!$xmlData) {
+        printf("フィードの取得に失敗しました<br>\n");
+        continue;
+      }
+
+      $this->setFeedData($xmlData, $topicName);
     }
+
+    $contents = $this->createFeedContentsHtml();
   }
 
   /**
@@ -78,7 +87,7 @@ class Feed {
    * @param $response
    * @return void
    */
-  private function xml($response): void {
+  private function loadXml($response): bool|simpleXMLElement {
 //      $response = "<root><item>Item</item></root>";
 //    $response = "<root><item>Item</root>";
 
@@ -93,10 +102,11 @@ class Feed {
 
       // エラーハンドルをクリアする
       libxml_clear_errors();
-      return;
+      return false;
     }
 
-    $this->displayContent($xml);
+    return $xml;
+//    $this->displayContent($xml);
   }
 
   /**
@@ -123,6 +133,71 @@ class Feed {
 
       echo $errorMessage;
     }
+  }
+
+  /**
+   * @param simpleXMLElement $xml
+   * @param string $topicName
+   * @return void
+   *
+   * TODO:エラー処理
+   */
+  private function setFeedData(simpleXMLElement $xml, string $topicName): void {
+    // `item`要素がない場合は`foreach`で`warning`が出るのでここで止める
+//    if (!isset($xml->channel->item)) {
+//      echo "フィードの取得に失敗しました<hr>";
+//      return;
+//    }
+
+    $data = [];
+    $data["topic"] = htmlspecialchars(
+      (string)$xml->channel->title,
+      ENT_QUOTES
+    );
+
+    $feed = [];
+    foreach ($xml->channel->item as $item) {
+      $tmp = [];
+      $tmp["link"] = (string)$item->link;
+      $tmp["title"] = (string)$item->title;
+      $feed[] = $tmp;
+    }
+    $data["feed"] = $feed;
+//    print_r($data);
+
+    $this->feedData[$topicName] = $data;
+  }
+
+  private function createFeedContentsHtml(): string {
+    $contents = "";
+
+    foreach ($this->topicNames as $topicName) {
+      $tmpContents = [];
+      $titleList = [];
+
+      foreach ($this->feedData[$topicName]["feed"] as $feedData) {
+        $titleList[] = sprintf(
+          "<li><a href='%s' target=_blank>%s</a></li>",
+          htmlspecialchars($feedData["link"], ENT_QUOTES),
+          htmlspecialchars($feedData["title"], ENT_QUOTES),
+        );
+      }
+
+      $tmpContents["topic"] = sprintf(
+        "<h3>%s</h3>",
+        $this->feedData[$topicName]["topic"],
+      );
+
+      $tmpContents["titleList"] = sprintf(
+        "<ul>%s</ul>",
+        implode("\n", $titleList)
+      );
+
+      $contents .= $tmpContents["topic"];
+      $contents .= $tmpContents["titleList"];
+    }
+
+    return $contents;
   }
 
   /**
