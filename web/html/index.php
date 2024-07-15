@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 spl_autoload_register(function (string $class) {
-  include $class . '.php';
+  include '../src/' . $class . '.php';
 });
 
 $cls = new Feed();

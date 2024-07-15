@@ -2,9 +2,9 @@
 <html lang="ja">
 <head>
   <meta charset="UTF-8">
-  <title>Feed</title>
+  <title>Page Title</title>
 </head>
 <body>
-__CONTENTS__
+<?= $contents ?? ""; ?>
 </body>
 </html>

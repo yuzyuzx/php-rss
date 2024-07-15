@@ -8,8 +8,6 @@ class Feed {
 
   private readonly array $topicNames;
 
-  private string $topicUrl;
-
   private array $feedData = [];
 
   public function __construct() {
@@ -25,7 +23,6 @@ class Feed {
   public function run(): void {
     foreach ($this->topicNames as $topicName) {
       $response = $this->fetch($topicName);
-
       if (!$response) {
         printf("ネットワークのに失敗しました<br>\n");
         continue;
@@ -33,17 +30,25 @@ class Feed {
 
       $xmlData = $this->loadXml($response);
       if (!$xmlData) {
-        printf("フィードの取得に失敗しました<br>\n");
+        printf("{$topicName}フィードの取得に失敗しました<br>\n");
+        continue;
+      }
+
+      if(!$this->isItemElement($xmlData)) {
+        printf("{$topicName}フィードの取得に失敗しました<br>\n");
         continue;
       }
 
       $this->setFeedData($xmlData, $topicName);
     }
 
+    if (empty(array_filter($this->feedData))) {
+      return;
+    }
+
     $contents = $this->createFeedContentsHtml();
 
-    $this->displayContent($contents);
-
+    $this->displayContents($contents);
   }
 
   /**
@@ -55,8 +60,12 @@ class Feed {
     $ch = curl_init();
 
     // 取得するフィードのURLを生成する
-    $this->topicUrl = sprintf("%s/topics/%s/feed", self::DOMAIN, $topicName);
-    curl_setopt($ch, CURLOPT_URL, $this->topicUrl);
+    $topicUrl = sprintf(
+      "%s/topics/%s/feed",
+      self::DOMAIN,
+      $topicName
+    );
+    curl_setopt($ch, CURLOPT_URL, $topicUrl);
 
     // curl_exec()の戻り値を文字列で返す
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
@@ -88,11 +97,21 @@ class Feed {
 
   /**
    * @param $response
-   * @return void
+   * @return bool|simpleXMLElement
    */
   private function loadXml($response): bool|simpleXMLElement {
-//      $response = "<root><item>Item</item></root>";
+//     $response = "<root><item>Item</item></root>";
 //    $response = "<root><item>Item</root>";
+//    $response = "
+//    <rss>
+//      <channel>
+//        <title>P'H'P</title>
+//        <item>
+//          <title>t\"it'le</title>
+//          <link>https://zenn.dev/?id=3name=yuz</link>
+//         </item>
+//       </channel>
+//    </rss>";
 
     // エラー処理を有効にする
     libxml_use_internal_errors(true);
@@ -109,7 +128,6 @@ class Feed {
     }
 
     return $xml;
-//    $this->displayContent($xml);
   }
 
   /**
@@ -118,24 +136,17 @@ class Feed {
    */
   function displayErrors(array $errors): void {
     foreach ($errors as $error) {
-      $errorMessage = "";
-      switch ($error->level) {
-        case LIBXML_ERR_WARNING:
-          $errorMessage .= "Warning $error->code: ";
-          break;
-        case LIBXML_ERR_ERROR:
-          $errorMessage .= "Error $error->code: ";
-          break;
-        case LIBXML_ERR_FATAL:
-          $errorMessage .= "Fatal Error $error->code: ";
-          break;
-      }
-
-
-      $errorMessage .= trim($error->message) . "\n<br>";
-
-      echo $errorMessage;
+      printf("Error code: %s, ", $error->code);
     }
+  }
+
+  private function isItemElement(simpleXMLElement $xml): bool {
+    // `item`要素が存在する
+    if (isset($xml->channel->item)) {
+      return true;
+    }
+
+    return false;
   }
 
   /**
@@ -146,17 +157,9 @@ class Feed {
    * TODO:エラー処理
    */
   private function setFeedData(simpleXMLElement $xml, string $topicName): void {
-    // `item`要素がない場合は`foreach`で`warning`が出るのでここで止める
-//    if (!isset($xml->channel->item)) {
-//      echo "フィードの取得に失敗しました<hr>";
-//      return;
-//    }
 
     $data = [];
-    $data["topic"] = htmlspecialchars(
-      (string)$xml->channel->title,
-      ENT_QUOTES
-    );
+    $data["topic"] = (string)$xml->channel->title;
 
     $feed = [];
     foreach ($xml->channel->item as $item) {
@@ -180,14 +183,14 @@ class Feed {
       foreach ($this->feedData[$topicName]["feed"] as $feedData) {
         $titleList[] = sprintf(
           "<li><a href='%s' target=_blank>%s</a></li>",
-          htmlspecialchars($feedData["link"], ENT_QUOTES),
-          htmlspecialchars($feedData["title"], ENT_QUOTES),
+          $this->h($feedData["link"]),
+          $this->h($feedData["title"]),
         );
       }
 
       $tmpContents["topic"] = sprintf(
         "<h3>%s</h3>",
-        $this->feedData[$topicName]["topic"],
+        $this->h($this->feedData[$topicName]["topic"]),
       );
 
       $tmpContents["titleList"] = sprintf(
@@ -202,16 +205,19 @@ class Feed {
     return $contents;
   }
 
+  private function displayContents(string $contents): void {
+    $value = ['contents' => $contents];
 
+    extract($value);
 
-  private function displayContent(string $contents): void {
+    $viewFile = '../views/view.php';
+    if (file_exists($viewFile)) {
+      include $viewFile;
+    }
+  }
 
-    // ファイル存在チェック
-    $html = file("./index.html");
-    var_dump($html);
-
-    // false処理
-
+  private function h(string $s): string {
+    return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
   }
 
 }
