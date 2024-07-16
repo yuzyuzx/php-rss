@@ -1,1 +1,1 @@
-# php-rss
+# php-zenn-rss
