@@ -11,16 +11,16 @@ class ZennFeed {
   private const string DOMAIN = "https://zenn.dev";
 
   /** @var string[] 取得対象のトピック名を格納する配列 */
-  private readonly array $topicNames;
+  private readonly array $topics;
 
   /** @var array 取得したフィードデータを格納する配列 */
-  private array $feedData = [];
+  private array $feeds = [];
 
   /**
    * 取得対象のトピック名を初期化する
    */
   public function __construct() {
-    $this->topicNames = [
+    $this->topics = [
       "php",
       "javascript",
     ];
@@ -32,7 +32,7 @@ class ZennFeed {
    * @return void
    */
   public function run(): void {
-    foreach ($this->topicNames as $topicName) {
+    foreach ($this->topics as $topicName) {
       // トピックごとにフィードを取得
       $response = $this->fetch($topicName);
       if (!$response) {
@@ -41,32 +41,32 @@ class ZennFeed {
       }
 
       // 取得したデータをXMLオブジェクトとして読み込む
-      $xmlData = $this->loadXml($response);
+      $xmlData = $this->parseXml($response);
       if (!$xmlData) {
         printf("{$topicName}フィードの取得に失敗しました<br>\n");
         continue;
       }
 
       // XMLに必要な要素が存在しているか確認する
-      if (!$this->isItemElement($xmlData)) {
+      if (!$this->hasItemElement($xmlData)) {
         printf("{$topicName}フィードの取得に失敗しました<br>\n");
         continue;
       }
 
       // データを格納する
-      $this->setFeedData($xmlData, $topicName);
+      $this->addFeedData($xmlData, $topicName);
     }
 
     // 全てのフィードが空の場合は終了
-    if (empty(array_filter($this->feedData))) {
+    if (empty(array_filter($this->feeds))) {
       return;
     }
 
     // 表示用のHTMLを生成する
-    $contents = $this->createFeedContentsHtml();
+    $contents = $this->createFeedHtml();
 
     // データを表示する
-    $this->displayContents($contents);
+    $this->render($contents);
   }
 
   /**
@@ -119,7 +119,7 @@ class ZennFeed {
    * @return false|simpleXMLElement
    * 変換に成功した場合はSimpleXMLElementオブジェクト、失敗した場合はfalse
    */
-  private function loadXml(string $response): bool|simpleXMLElement {
+  private function parseXml(string $response): bool|simpleXMLElement {
 //    $response = "<root><item>Item</item></root>";
 //    $response = "<root><item>Item</root>";
 //    $response = "
@@ -171,7 +171,7 @@ class ZennFeed {
    * @return bool
    * `item`要素が存在する場合はtrue、存在しない場合はfalse
    */
-  private function isItemElement(simpleXMLElement $xml): bool {
+  private function hasItemElement(simpleXMLElement $xml): bool {
     if (isset($xml->channel->item)) {
       return true;
     }
@@ -186,7 +186,7 @@ class ZennFeed {
    * @param string $topicName トピック名
    * @return void
    */
-  private function setFeedData(simpleXMLElement $xml, string $topicName): void {
+  private function addFeedData(simpleXMLElement $xml, string $topicName): void {
     $data = [];
     $data["topic"] = (string)$xml->channel->title;
 
@@ -199,7 +199,7 @@ class ZennFeed {
     }
     $data["feed"] = $feed;
 
-    $this->feedData[$topicName] = $data;
+    $this->feeds[$topicName] = $data;
   }
 
   /**
@@ -207,14 +207,14 @@ class ZennFeed {
    *
    * @return string 生成されたHTML
    */
-  private function createFeedContentsHtml(): string {
+  private function createFeedHtml(): string {
     $contents = "";
 
-    foreach ($this->topicNames as $topicName) {
+    foreach ($this->topics as $topicName) {
       $tmpContents = [];
       $titleList = [];
 
-      foreach ($this->feedData[$topicName]["feed"] as $feedData) {
+      foreach ($this->feeds[$topicName]["feed"] as $feedData) {
         $titleList[] = sprintf(
           "<li><a href='%s' target=_blank>%s</a></li>",
           $this->h($feedData["link"]),
@@ -224,7 +224,7 @@ class ZennFeed {
 
       $tmpContents["topic"] = sprintf(
         "<h3>%s</h3>",
-        $this->h($this->feedData[$topicName]["topic"]),
+        $this->h($this->feeds[$topicName]["topic"]),
       );
 
       $tmpContents["titleList"] = sprintf(
@@ -245,7 +245,7 @@ class ZennFeed {
    * @param string $contents 生成されたHTML
    * @return void
    */
-  private function displayContents(string $contents): void {
+  private function render(string $contents): void {
     $value = ['contents' => $contents];
 
     extract($value);
