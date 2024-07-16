@@ -3,21 +3,21 @@
 declare(strict_types=1);
 
 /**
- * zennから特定のトピックのRSSフィードを取得して画面に表示する
+ * Zennから特定のトピックのRSSフィードを取得して画面に表示するクラス
  */
 class ZennFeed {
 
   /** @var string zennのドメイン */
   private const string DOMAIN = "https://zenn.dev";
 
-  /** @var string[] 取得対象のトピックを格納する配列 */
+  /** @var string[] 取得対象のトピック名を格納する配列 */
   private readonly array $topicNames;
 
-  /** @var array 取得したフィードのデータを格納する配列 */
+  /** @var array 取得したフィードデータを格納する配列 */
   private array $feedData = [];
 
   /**
-   * 取得対象のトピックを設定する
+   * 取得対象のトピック名を初期化する
    */
   public function __construct() {
     $this->topicNames = [
@@ -27,11 +27,13 @@ class ZennFeed {
   }
 
   /**
+   * フィードの取得と表示を実行するメインメソッド
+   *
    * @return void
    */
   public function run(): void {
     foreach ($this->topicNames as $topicName) {
-      // ネットワーク経由でデータを取得する
+      // トピックごとにフィードを取得
       $response = $this->fetch($topicName);
       if (!$response) {
         printf("ネットワークのに失敗しました<br>\n");
@@ -55,6 +57,7 @@ class ZennFeed {
       $this->setFeedData($xmlData, $topicName);
     }
 
+    // 全てのフィードが空の場合は終了
     if (empty(array_filter($this->feedData))) {
       return;
     }
@@ -69,11 +72,10 @@ class ZennFeed {
   /**
    * フィードデータをネットワーク経由で取得する
    *
-   * @param string $topicName
-   * @return bool|string
+   * @param string $topicName トピック名
+   * @return false|string 取得に成功した場合はフィードデータ、失敗した場合はfalse
    */
   private function fetch(string $topicName): bool|string {
-    // 新規cURLリソースを生成する
     $ch = curl_init();
 
     // 取得するフィードのURLを生成する
@@ -82,32 +84,27 @@ class ZennFeed {
       self::DOMAIN,
       $topicName
     );
+
     curl_setopt($ch, CURLOPT_URL, $topicUrl);
-
-    // curl_exec()の戻り値を文字列で返す
     curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
-
-    // タイムアウト（秒）をセットする
-    $timeout = 3;
-    curl_setopt($ch, CURLOPT_TIMEOUT, $timeout);
+    curl_setopt($ch, CURLOPT_TIMEOUT, 3);
 
     // 実行
     $response = curl_exec($ch);
 
     // 取得失敗なら終了
     if ($response === false) {
-      // cURLリソースを閉じる
       curl_close($ch);
       return false;
     }
 
-    // 最後に受け取ったHTTPコード取得する
+    // HTTPステータスコードを取得
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
+
+    curl_close($ch);
 
     // レスポンスステータスコードが400以上なら終了
     if (400 <= $httpCode) {
-      // cURLリソースを閉じる
-      curl_close($ch);
       return false;
     }
 
@@ -115,12 +112,14 @@ class ZennFeed {
   }
 
   /**
-   * 取得したフィードデータ(xml)をオブジェクトに代入する
+   * 取得したフィードデータ(XML)をSimpleXMLElementオブジェクトに変換する
    *
-   * @param $response
-   * @return bool|simpleXMLElement
+   * @param string $response フィードデータ
+   *
+   * @return false|simpleXMLElement
+   * 変換に成功した場合はSimpleXMLElementオブジェクト、失敗した場合はfalse
    */
-  private function loadXml($response): bool|simpleXMLElement {
+  private function loadXml(string $response): bool|simpleXMLElement {
 //    $response = "<root><item>Item</item></root>";
 //    $response = "<root><item>Item</root>";
 //    $response = "
@@ -152,10 +151,9 @@ class ZennFeed {
   }
 
   /**
-   * loadXml()内のエラー処理を行う
-   * エラー内容を取得して画面に出力する
+   * XMLパースエラーを画面に表示する
    *
-   * @param array $errors
+   * @param array $errors XMLパースエラーの配列
    * @return void
    */
   function displayErrors(array $errors): void {
@@ -165,13 +163,15 @@ class ZennFeed {
   }
 
   /**
-   * xml内の`item`要素が存在するか確認する
+   * xml内に`item`要素が存在するか確認する
    *
    * @param simpleXMLElement $xml
+   * SimpleXMLElementオブジェクト
+   *
    * @return bool
+   * `item`要素が存在する場合はtrue、存在しない場合はfalse
    */
   private function isItemElement(simpleXMLElement $xml): bool {
-    // `item`要素が存在する
     if (isset($xml->channel->item)) {
       return true;
     }
@@ -180,11 +180,10 @@ class ZennFeed {
   }
 
   /**
-   * 必要なデータを`string`型に変換する
-   * 変換後のデータは連想配列に格納する
+   * XMLデータを配列に変換し、フィードデータとして格納する
    *
-   * @param simpleXMLElement $xml
-   * @param string $topicName
+   * @param simpleXMLElement $xml SimpleXMLElementオブジェクト
+   * @param string $topicName トピック名
    * @return void
    */
   private function setFeedData(simpleXMLElement $xml, string $topicName): void {
@@ -204,9 +203,9 @@ class ZennFeed {
   }
 
   /**
-   * 表示用HTMLを生成する
+   * フィードデータから表示用HTMLを生成する
    *
-   * @return string
+   * @return string 生成されたHTML
    */
   private function createFeedContentsHtml(): string {
     $contents = "";
@@ -243,7 +242,7 @@ class ZennFeed {
   /**
    * 生成したHTMLをビュー用のファイルに渡して表示する
    *
-   * @param string $contents
+   * @param string $contents 生成されたHTML
    * @return void
    */
   private function displayContents(string $contents): void {
@@ -260,10 +259,10 @@ class ZennFeed {
   }
 
   /**
-   * htmlspecialchars()のラッパー
+   * htmlspecialchars()のラッパー関数
    *
-   * @param string $s
-   * @return string
+   * @param string $s エスケープする文字列
+   * @return string エスケープされた文字列
    */
   private function h(string $s): string {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
