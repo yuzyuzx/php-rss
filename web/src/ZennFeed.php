@@ -120,19 +120,6 @@ class ZennFeed {
    * 変換に成功した場合はSimpleXMLElementオブジェクト、失敗した場合はfalse
    */
   private function parseXml(string $response): bool|simpleXMLElement {
-//    $response = "<root><item>Item</item></root>";
-//    $response = "<root><item>Item</root>";
-//    $response = "
-//    <rss>
-//      <channel>
-//        <title>P'H'P</title>
-//        <item>
-//          <title>t\"it'le</title>
-//          <link>https://zenn.dev/?id=3name=yuz</link>
-//         </item>
-//       </channel>
-//    </rss>";
-
     // エラー処理を有効にする
     libxml_use_internal_errors(true);
 
@@ -156,7 +143,7 @@ class ZennFeed {
    * @param array $errors XMLパースエラーの配列
    * @return void
    */
-  function displayErrors(array $errors): void {
+  private function displayErrors(array $errors): void {
     foreach ($errors as $error) {
       printf("Error code: %s, ", $error->code);
     }
