@@ -5,7 +5,7 @@
 [zenn](https://zenn.dev)のRSSフィードを取得してHTMLとして表示するアプリです。  
 （サンプルでは`php`と`javascript`のフィードを対象にしています。）
 
-![pic-1](./assets/pic-1.png)
+![pic-1](./assets/pic.png)
 
 ## 環境
 
