@@ -6,5 +6,5 @@ spl_autoload_register(function (string $class) {
   include '../src/' . $class . '.php';
 });
 
-$cls = new Feed();
+$cls = new ZennFeed();
 $cls->run();

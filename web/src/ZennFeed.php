@@ -2,14 +2,23 @@
 
 declare(strict_types=1);
 
-class Feed {
+/**
+ * zennから特定のトピックのRSSフィードを取得して画面に表示する
+ */
+class ZennFeed {
 
+  /** @var string zennのドメイン */
   private const string DOMAIN = "https://zenn.dev";
 
+  /** @var string[] 取得対象のトピックを格納する配列 */
   private readonly array $topicNames;
 
+  /** @var array 取得したフィードのデータを格納する配列 */
   private array $feedData = [];
 
+  /**
+   * 取得対象のトピックを設定する
+   */
   public function __construct() {
     $this->topicNames = [
       "php",
@@ -22,23 +31,27 @@ class Feed {
    */
   public function run(): void {
     foreach ($this->topicNames as $topicName) {
+      // ネットワーク経由でデータを取得する
       $response = $this->fetch($topicName);
       if (!$response) {
         printf("ネットワークのに失敗しました<br>\n");
         continue;
       }
 
+      // 取得したデータをXMLオブジェクトとして読み込む
       $xmlData = $this->loadXml($response);
       if (!$xmlData) {
         printf("{$topicName}フィードの取得に失敗しました<br>\n");
         continue;
       }
 
-      if(!$this->isItemElement($xmlData)) {
+      // XMLに必要な要素が存在しているか確認する
+      if (!$this->isItemElement($xmlData)) {
         printf("{$topicName}フィードの取得に失敗しました<br>\n");
         continue;
       }
 
+      // データを格納する
       $this->setFeedData($xmlData, $topicName);
     }
 
@@ -46,12 +59,16 @@ class Feed {
       return;
     }
 
+    // 表示用のHTMLを生成する
     $contents = $this->createFeedContentsHtml();
 
+    // データを表示する
     $this->displayContents($contents);
   }
 
   /**
+   * フィードデータをネットワーク経由で取得する
+   *
    * @param string $topicName
    * @return bool|string
    */
@@ -77,6 +94,7 @@ class Feed {
     // 実行
     $response = curl_exec($ch);
 
+    // 取得失敗なら終了
     if ($response === false) {
       // cURLリソースを閉じる
       curl_close($ch);
@@ -86,6 +104,7 @@ class Feed {
     // 最後に受け取ったHTTPコード取得する
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
 
+    // レスポンスステータスコードが400以上なら終了
     if (400 <= $httpCode) {
       // cURLリソースを閉じる
       curl_close($ch);
@@ -96,11 +115,13 @@ class Feed {
   }
 
   /**
+   * 取得したフィードデータ(xml)をオブジェクトに代入する
+   *
    * @param $response
    * @return bool|simpleXMLElement
    */
   private function loadXml($response): bool|simpleXMLElement {
-//     $response = "<root><item>Item</item></root>";
+//    $response = "<root><item>Item</item></root>";
 //    $response = "<root><item>Item</root>";
 //    $response = "
 //    <rss>
@@ -119,8 +140,8 @@ class Feed {
     $xml = simplexml_load_string($response);
 
     if ($xml === false) {
-      $errors = libxml_get_errors();
-      $this->displayErrors($errors);
+      // エラー内容を出力する
+      $this->displayErrors(libxml_get_errors());
 
       // エラーハンドルをクリアする
       libxml_clear_errors();
@@ -131,6 +152,9 @@ class Feed {
   }
 
   /**
+   * loadXml()内のエラー処理を行う
+   * エラー内容を取得して画面に出力する
+   *
    * @param array $errors
    * @return void
    */
@@ -140,6 +164,12 @@ class Feed {
     }
   }
 
+  /**
+   * xml内の`item`要素が存在するか確認する
+   *
+   * @param simpleXMLElement $xml
+   * @return bool
+   */
   private function isItemElement(simpleXMLElement $xml): bool {
     // `item`要素が存在する
     if (isset($xml->channel->item)) {
@@ -150,14 +180,14 @@ class Feed {
   }
 
   /**
+   * 必要なデータを`string`型に変換する
+   * 変換後のデータは連想配列に格納する
+   *
    * @param simpleXMLElement $xml
    * @param string $topicName
    * @return void
-   *
-   * TODO:エラー処理
    */
   private function setFeedData(simpleXMLElement $xml, string $topicName): void {
-
     $data = [];
     $data["topic"] = (string)$xml->channel->title;
 
@@ -173,6 +203,11 @@ class Feed {
     $this->feedData[$topicName] = $data;
   }
 
+  /**
+   * 表示用HTMLを生成する
+   *
+   * @return string
+   */
   private function createFeedContentsHtml(): string {
     $contents = "";
 
@@ -205,6 +240,12 @@ class Feed {
     return $contents;
   }
 
+  /**
+   * 生成したHTMLをビュー用のファイルに渡して表示する
+   *
+   * @param string $contents
+   * @return void
+   */
   private function displayContents(string $contents): void {
     $value = ['contents' => $contents];
 
@@ -213,9 +254,17 @@ class Feed {
     $viewFile = '../views/view.php';
     if (file_exists($viewFile)) {
       include $viewFile;
+    } else {
+      include '../views/error.php';
     }
   }
 
+  /**
+   * htmlspecialchars()のラッパー
+   *
+   * @param string $s
+   * @return string
+   */
   private function h(string $s): string {
     return htmlspecialchars($s, ENT_QUOTES, 'UTF-8');
   }
